@@ -351,6 +351,9 @@ body::before{background:#2b1713}
 .h2 .btn:not(.ghost){background:linear-gradient(135deg,#f6d98b,#c9962b);color:#2b1713}
 .h2 .btn.ghost{color:#f6d98b;border-color:#f6d98b}
 @media(max-width:760px){.h2{background:linear-gradient(135deg,#3b2420,#1f100d)}.logo img{height:42px}}
+.salao{box-shadow:var(--sh);border:2px solid #c9962b}
+.salao .mesas button{padding:16px 0;font-size:18px}
+@media(min-width:760px){.salao .mesas{grid-template-columns:repeat(10,1fr)}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -388,6 +391,7 @@ body::before{background:#2b1713}
   <a class="btn ghost" style="margin-left:8px" href="https://wa.me/557599664573" target="_blank" rel="noopener">WhatsApp</a>
 </div></div>
 
+<section id="salao" style="padding:30px 0 0"><div class="wrap"><div class="box salao"><h3>🪑 Está no salão?</h3><p class="sub" style="margin:4px 0 12px">Toque no número da sua mesa e faça o pedido sem sair do lugar.</p><div class="mesas" id="salaoMesas"></div></div></div></section>
 <section id="cardapio"><div class="wrap">
   <h2>Cardápio</h2>
   <p class="sub">Escolha, toque em + e finalize. Seu pedido chega direto na cozinha.</p>
@@ -437,6 +441,7 @@ body::before{background:#2b1713}
   <div id="dash" style="display:none">
     <h2>Painel de pedidos</h2>
     <div class="kpis" id="kpis"></div>
+    <div class="box" style="margin:0 0 18px"><b>🧪 Testar o atendimento das mesas</b><p class="sub" style="margin:4px 0 10px">Abra uma mesa em outra aba e faça um pedido, ou gere um pedido de exemplo aqui. Ele aparece em Novos e você avança até Entregue.</p><div class="ctas" style="margin:0;align-items:center"><select id="tm" style="padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select><button class="btn" onclick="pedidoTeste()">Gerar pedido de teste</button><button class="btn ghost" onclick="abrirMesa()">Abrir site da mesa</button></div></div>
     <h3 style="margin-bottom:8px">Mesas</h3>
     <div class="mini" id="mini"></div>
     <div class="cols" id="cols"></div>
@@ -461,8 +466,10 @@ const CFG={
   SB_KEY:'',   // anon key do Supabase
   PIN:'1990',
   WA:'557599664573',
-  MESAS:10
+  MESAS:10,
+  PAUSA:false   // true = mostra o aviso "em atualização" por cima do site (site fora do ar)
 };
+if(CFG.PAUSA){const p=document.createElement('div');p.style.cssText='position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#3b2420,#1f100d);color:#f6ead3;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:Inter,system-ui,sans-serif';p.innerHTML='<div style="font-size:64px">🥖</div><h1 style="font-family:Fraunces,Georgia,serif;color:#f6d98b;margin:10px 0">Estamos em atualização</h1><p style="max-width:420px;opacity:.9">Nosso site volta em breve. Enquanto isso, faça seu pedido pelo WhatsApp.</p><a href="https://wa.me/557599664573" style="margin-top:14px;background:linear-gradient(135deg,#f6d98b,#c9962b);color:#2b1713;padding:14px 26px;border-radius:99px;font-weight:700;text-decoration:none">Chamar no WhatsApp</a>';document.body.appendChild(p)}
 const MENU=[
 ["Café da manhã","☕","Café completo","pão, manteiga, café com leite e fruta",16],
 ["Café da manhã","🍳","Pão com ovo","pão francês na chapa com ovo",8],
@@ -633,9 +640,14 @@ function drawLive(){const p=cat,its=MENU.filter(m=>m.cat===p).slice(0,3);
   $('live').innerHTML=`<small>${p==='Café da manhã'?'🌅 Cardápio do dia':p==='Janta'?'🌙 Cardápio da janta':'🍞 Pães de hoje'}</small><h3>${p}</h3>${its.map(m=>`<div class="line"><span>${m.n}</span><b>${R(m.p)}</b></div>`).join('')}<a class="btn" href="#cardapio">Ver tudo e pedir</a>`}
 if(!/claude|anthropic|usercontent|artifact/i.test(location.hostname))setTimeout(()=>mapa(),300);
 function mapa(){$('mapbox').innerHTML='<iframe title="Mapa" loading="lazy" src="https://www.google.com/maps?q=Panificadora+Capricho+Rua+Osvaldo+Cruz+149+Paulo+Afonso+BA&output=embed" style="border:0;width:100%;height:100%;min-height:340px"></iframe>'}
+function drawSalao(){$('salaoMesas').innerHTML=Array.from({length:CFG.MESAS},(_,i)=>`<button class="${mesa===i+1?'on':''}" onclick="pickMesa(${i+1})">${i+1}</button>`).join('')}
+function pickMesa(n){mesa=n;tipo='mesa';LOCK=true;$('mb').style.display='';$('mb').textContent='Mesa '+n;drawSalao();$('cardapio').scrollIntoView({behavior:'smooth'})}
+async function pedidoTeste(){const n=$('tm').value;await criar({tipo:'mesa',mesa:n,nome:'Teste',obs:'Pedido de teste',itens:[{n:'Café completo',q:1,p:16},{n:'Pão de queijo',q:1,p:8}],total:24});refresh()}
+function abrirMesa(){window.open(location.href.split('#')[0].split('?')[0]+'?mesa='+$('tm').value,'_blank')}
+window.addEventListener('storage',()=>{if(pt)refresh()});
 function qrs(){const b=location.href.split('#')[0].split('?')[0];$('qrs').innerHTML=Array.from({length:CFG.MESAS},(_,i)=>`<div class="qrc"><b>Mesa ${i+1}</b><div id="q${i+1}"></div><small>Escaneie e peça</small></div>`).join('');
   for(let n=1;n<=CFG.MESAS;n++){try{new QRCode($('q'+n),{text:b+'?mesa='+n,width:140,height:140})}catch(e){$('q'+n).textContent=b+'?mesa='+n}}}
-drawCats();drawMenu();drawLive();fab();rota();
+drawCats();drawMenu();drawLive();drawSalao();fab();rota();
 if(meu){tick=setInterval(()=>{if($('dr').classList.contains('open'))drawStatus()},5000)}
 </script>
 </body>
